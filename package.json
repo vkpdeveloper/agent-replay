@@ -1,0 +1,33 @@
+{
+  "name": "agent-replay",
+  "version": "0.1.0",
+  "description": "Turn Claude Code and Codex sessions into native-looking terminal replays: one HTML file, or an MP4.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "agent-replay": "./src/cli.ts"
+  },
+  "files": [
+    "src",
+    "skill"
+  ],
+  "scripts": {
+    "typecheck": "tsc",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@remotion/bundler": "4.0.538",
+    "@remotion/player": "4.0.538",
+    "@remotion/renderer": "4.0.538",
+    "@remotion/web-renderer": "4.0.538",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "remotion": "4.0.538"
+  },
+  "devDependencies": {
+    "@types/bun": "1.4.4",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "typescript": "7.0.2"
+  }
+}
