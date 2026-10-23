@@ -1,8 +1,6 @@
 import { Composition } from "remotion";
-import { COLS, FPS, HEIGHT, ROWS, WIDTH, type Replay as ReplayData } from "../replay.ts";
+import { COLS, COMPOSITION_ID, FPS, HEIGHT, ROWS, WIDTH, type Replay as ReplayData } from "../replay.ts";
 import { Replay, type ReplayProps } from "./Replay.tsx";
-
-export const COMPOSITION_ID = "Replay";
 
 const empty: ReplayData = {
   agent: "claude",

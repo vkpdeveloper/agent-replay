@@ -72,7 +72,7 @@ const seconds = (replay.durationInFrames / replay.fps).toFixed(1);
 if (values.json) {
   await Bun.write(out, JSON.stringify(replay));
 } else if (!mp4Only) {
-  await Bun.write(out, await buildHtml(replay));
+  await Bun.write(out, buildHtml(replay));
 }
 if (!mp4Only) {
   const ms = Math.round(performance.now() - started);

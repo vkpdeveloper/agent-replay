@@ -64,6 +64,7 @@ export interface Replay {
   status: Status[];
 }
 
+export const COMPOSITION_ID = "Replay";
 export const FPS = 30;
 export const COLS = 120;
 export const ROWS = 32;

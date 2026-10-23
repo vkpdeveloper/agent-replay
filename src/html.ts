@@ -1,32 +1,9 @@
-import type { BunPlugin } from "bun";
 import type { Replay } from "./replay.ts";
+// Built by `bun run build` and embedded into the compiled binary.
+import player from "../dist/player.js.txt";
 
-// Replays are silent. The web renderer only loads these WASM audio encoders
-// (~1.6 MB) as a fallback for audio tracks, so they are stubbed out.
-const noAudioEncoders: BunPlugin = {
-  name: "no-audio-encoders",
-  setup(build) {
-    build.onResolve({ filter: /^@mediabunny\/(aac|flac|mp3)-encoder$/ }, ({ path }) => ({ path, namespace: "no-audio" }));
-    build.onLoad({ filter: /.*/, namespace: "no-audio" }, () => ({
-      loader: "js",
-      contents: `const off = () => { throw new Error("Replays are silent"); };
-export { off as registerAacEncoder, off as registerFlacEncoder, off as registerMp3Encoder };`,
-    }));
-  },
-};
-
-/** Bundles the player and inlines it with the replay data into one self-contained HTML file. */
-export async function buildHtml(replay: Replay): Promise<string> {
-  const build = await Bun.build({
-    entrypoints: [new URL("./web/main.tsx", import.meta.url).pathname],
-    target: "browser",
-    minify: true,
-    plugins: [noAudioEncoders],
-    define: { "process.env.NODE_ENV": JSON.stringify("production") },
-  });
-  if (!build.success) throw new AggregateError(build.logs, "Failed to bundle the player");
-  const script = await build.outputs[0]!.text();
-
+/** Inlines the prebuilt player and the replay data into one self-contained HTML file. */
+export function buildHtml(replay: Replay): string {
   const title = escapeHtml(replay.title || "Agent replay");
   // `<` is escaped so neither the data nor the bundle can close the script tag early.
   const data = JSON.stringify(replay).replace(/</g, "\\u003c");
@@ -53,7 +30,7 @@ export async function buildHtml(replay: Replay): Promise<string> {
 <body>
 <div id="root"></div>
 <script type="application/json" id="replay-data">${data}</script>
-<script type="module">${script.replace(/<\/script/gi, "<\\/script")}</script>
+<script type="module">${player.replace(/<\/script/gi, "<\\/script")}</script>
 </body>
 </html>
 `;

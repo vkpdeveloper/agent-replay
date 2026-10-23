@@ -5,8 +5,10 @@ description: Turn a Claude Code or Codex session into a replay that looks like t
 
 # Agent Replay
 
-`replay.sh` (next to this file) runs the agent-replay CLI. It needs `bun`, and
-`bun install` must have been run once in the repository this skill lives in.
+`replay.sh` (next to this file) runs the installed `agent-replay` binary at
+`~/.local/bin/agent-replay`. If it reports the binary is missing, or the user
+changed the code, run `bun install && bun run install:bin` in the repository
+this skill lives in.
 
 ## Pick the session
 
@@ -30,7 +32,7 @@ description: Turn a Claude Code or Codex session into a replay that looks like t
 Options:
 
 - `--mp4` also renders an MP4 next to the HTML. `-o file.mp4` renders only the video.
-  The first MP4 render downloads Chrome Headless Shell (about 170 MB).
+  If Chrome Headless Shell is not installed yet, the first MP4 render downloads it.
 - `--turns 2-4` keeps only those user turns. Use this for long sessions, or when
   the user wants one part.
 - `--speed 2` plays faster.

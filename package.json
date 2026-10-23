@@ -12,6 +12,8 @@
     "skill"
   ],
   "scripts": {
+    "build": "bun scripts/build.ts",
+    "install:bin": "bun scripts/install.ts",
     "typecheck": "tsc",
     "test": "bun test"
   },

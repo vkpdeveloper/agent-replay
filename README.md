@@ -7,11 +7,18 @@ like a video, or an MP4.
 
 ```sh
 bun install
-bun src/cli.ts list                     # local sessions, newest first
-bun src/cli.ts latest:claude            # -> replay-<id>.html
-bun src/cli.ts <session-id> --mp4       # -> replay-<id>.html + replay-<id>.mp4
-bun src/cli.ts <session-id> -o demo.mp4 --turns 2-3 --speed 1.5
+bun run install:bin                     # -> ~/.local/bin/agent-replay
+
+agent-replay list                       # local sessions, newest first
+agent-replay latest:claude              # -> replay-<id>.html
+agent-replay <session-id> --mp4         # -> replay-<id>.html + replay-<id>.mp4
+agent-replay <session-id> -o demo.mp4 --turns 2-3 --speed 1.5
 ```
+
+`install:bin` compiles a standalone binary with `bun build --compile` and
+installs it to `~/.local/share/agent-replay` with the prebuilt Remotion site
+and compositor it needs for MP4s, so it runs without the repository. Set
+`AGENT_REPLAY_HOME` to install somewhere else. Rerun it after changing the code.
 
 Sessions are read from `~/.claude/projects` (Claude Code, including T3 Code's
 Claude threads) and `~/.codex/sessions` (Codex). A session can be a path, an id
@@ -67,8 +74,8 @@ session.jsonl ─ parse ─▶ Session ─ redact ─▶ layout ─▶ Replay �
 
 ## Skill
 
-`skill/agent-replay` is an agent skill for Claude Code and Codex. Symlink it
-into your skills directory:
+`skill/agent-replay` is an agent skill for Claude Code and Codex. It runs the
+installed binary. Symlink it into your skills directory:
 
 ```sh
 ln -s "$PWD/skill/agent-replay" ~/.claude/skills/agent-replay
@@ -80,7 +87,9 @@ Then ask your agent to "make a replay of this session".
 ## Development
 
 ```sh
-bun run typecheck   # TypeScript 7 (tsgo)
+bun run build --player   # dist/player.js.txt, embedded into replay.html
+bun src/cli.ts <session> # run from source
+bun run typecheck        # TypeScript 7 (tsgo)
 bun test
 ```
 
