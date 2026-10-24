@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { MASK, redact } from "./redact.ts";
+import { MASK, redact, redactDeep } from "./redact.ts";
 
 // Fake credentials are assembled at runtime so secret scanners don't flag this file.
 const fake = (...parts: string[]) => parts.join("");
@@ -70,4 +70,14 @@ describe("redact leaves alone", () => {
   for (const input of safe) {
     test(input, () => expect(redact(input)).toBe(input));
   }
+});
+
+test("redactDeep masks a secret everywhere once one place gives it away", () => {
+  const password = fake("Hk!@#", "7731x");
+  const session = {
+    prompts: [`my password is ${password}`, `what is the keyring password?\n${password}`],
+    commands: [`xdotool type '${password}'`, "git status"],
+  };
+  expect(JSON.stringify(redactDeep(session))).not.toContain(password);
+  expect(redactDeep(session).commands[1]).toBe("git status");
 });

@@ -47,7 +47,16 @@ const SUDO_STDIN = /(\b(?:echo|printf(?:\s+'%s\\n')?)\s+)(["']?)([^\s"'|]+)\2(\s
 // A whole message that is one password-like word: the answer to "what is the password?"
 const LONE_SECRET = /^(?=\S*[A-Za-z])(?=\S*\d)(?=\S*[!@#$%^&*])[^\s/.]{8,64}$/;
 
-export function redact(text: string, home?: string): string {
+/**
+ * Masks credentials in `text`. Values masked because of where they appear (after
+ * "password is", in NAME=value, piped into sudo) are added to `found`, so
+ * `redactDeep` can mask the same value where nothing around it says it is secret.
+ */
+export function redact(text: string, home?: string, found?: Set<string>): string {
+  const hide = (value: string) => {
+    found?.add(value);
+    return MASK;
+  };
   let out = text;
   if (home) out = out.split(home).join("~");
 
@@ -63,22 +72,22 @@ export function redact(text: string, home?: string): string {
   out = out.replace(/\b(bearer\s+)[A-Za-z0-9._~+/=-]{12,}/gi, `$1${MASK}`);
 
   // Credentials embedded in URLs: postgres://user:pass@host
-  out = out.replace(/\b([a-z][a-z0-9+.-]*:\/\/[^\s:/@"']+:)[^\s@/"']+@/gi, `$1${MASK}@`);
+  out = out.replace(/\b([a-z][a-z0-9+.-]*:\/\/[^\s:/@"']+:)([^\s@/"']+)@/gi, (_, lead: string, value: string) => `${lead}${hide(value)}@`);
 
   out = out.replace(QUOTED_ASSIGNMENT, (match, lead: string, quote: string, value: string) =>
-    isMaskableQuoted(value) ? `${lead}${quote}${MASK}${quote}` : match,
+    isMaskableQuoted(value) ? `${lead}${quote}${hide(value)}${quote}` : match,
   );
   out = out.replace(BARE_ASSIGNMENT, (match, lead: string, value: string) =>
-    isMaskableBare(value) ? `${lead}${MASK}` : match,
+    isMaskableBare(value) ? `${lead}${hide(value)}` : match,
   );
-  out = out.replace(FLAG, (match, lead: string, value: string) => (isMaskableBare(value) ? `${lead}${MASK}` : match));
-  out = out.replace(PROSE, (match, lead: string, value: string) => (value.includes(MASK) ? match : `${lead}${MASK}`));
-  out = out.replace(PROSE_BARE, (match, lead: string, value: string) => (value.includes(MASK) ? match : `${lead}${MASK}`));
-  out = out.replace(PROSE_BEFORE, (match, value: string, tail: string) => (value.includes(MASK) ? match : `${MASK}${tail}`));
+  out = out.replace(FLAG, (match, lead: string, value: string) => (isMaskableBare(value) ? `${lead}${hide(value)}` : match));
+  out = out.replace(PROSE, (match, lead: string, value: string) => (value.includes(MASK) ? match : `${lead}${hide(value)}`));
+  out = out.replace(PROSE_BARE, (match, lead: string, value: string) => (value.includes(MASK) ? match : `${lead}${hide(value)}`));
+  out = out.replace(PROSE_BEFORE, (match, value: string, tail: string) => (value.includes(MASK) ? match : `${hide(value)}${tail}`));
   out = out.replace(SUDO_STDIN, (match, lead: string, quote: string, value: string, tail: string) =>
-    value.includes(MASK) ? match : `${lead}${quote}${MASK}${quote}${tail}`,
+    value.includes(MASK) ? match : `${lead}${quote}${hide(value)}${quote}${tail}`,
   );
-  if (!out.includes(MASK) && LONE_SECRET.test(out.trim())) return MASK;
+  if (!out.includes(MASK) && LONE_SECRET.test(out.trim())) return hide(out.trim());
 
   return maskHighEntropy(out);
 }
@@ -130,16 +139,25 @@ function entropy(text: string): number {
   return bits;
 }
 
-/** Returns a copy of `value` with `redact` applied to every string inside it. */
+/**
+ * Returns a copy of `value` with `redact` applied to every string inside it, then
+ * masks every value found secret anywhere in it wherever else it appears: a password
+ * typed once as "my password is X" is also hidden where it was pasted bare.
+ */
 export function redactDeep<T>(value: T, home?: string): T {
-  return walk(value, home) as T;
+  const found = new Set<string>();
+  const redacted = walk(value, (text) => redact(text, home, found));
+  // Short values ("admin", "1234") would mask ordinary words and numbers.
+  const secrets = [...found].filter((secret) => secret.length >= 6 && !isPlaceholder(secret)).sort((a, b) => b.length - a.length);
+  if (!secrets.length) return redacted as T;
+  return walk(redacted, (text) => secrets.reduce((out, secret) => out.split(secret).join(MASK), text)) as T;
 }
 
-function walk(value: unknown, home: string | undefined): unknown {
-  if (typeof value === "string") return redact(value, home);
-  if (Array.isArray(value)) return value.map((item) => walk(item, home));
+function walk(value: unknown, map: (text: string) => string): unknown {
+  if (typeof value === "string") return map(value);
+  if (Array.isArray(value)) return value.map((item) => walk(item, map));
   if (value && typeof value === "object") {
-    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, walk(item, home)]));
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, walk(item, map)]));
   }
   return value;
 }
