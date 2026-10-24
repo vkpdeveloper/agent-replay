@@ -1,5 +1,7 @@
 # agent-replay
 
+[![skills.sh](https://skills.sh/b/vkpdeveloper/agent-replay)](https://skills.sh/vkpdeveloper/agent-replay)
+
 Turn a Claude Code or Codex session into a replay that looks like the real
 terminal: the prompt being typed, the spinner, tool calls going up, results
 streaming in, diffs, todos. You get a 1080p MP4, or one self-contained
@@ -7,11 +9,10 @@ streaming in, diffs, todos. You get a 1080p MP4, or one self-contained
 
 ## Install
 
-As an agent skill (Claude Code shown; use `~/.codex/skills` for Codex):
+As an agent skill for Claude Code, Codex and other agents:
 
 ```sh
-git clone --depth 1 https://github.com/vkpdeveloper/agent-replay /tmp/agent-replay
-cp -R /tmp/agent-replay/skill/agent-replay ~/.claude/skills/
+npx skills add vkpdeveloper/agent-replay
 ```
 
 Then ask your agent to "make a replay of this session". The skill downloads the
