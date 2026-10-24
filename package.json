@@ -1,6 +1,6 @@
 {
   "name": "agent-replay",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Turn Claude Code, Codex and OpenCode sessions into native-looking terminal replays: one HTML file, or an MP4.",
   "license": "MIT",
   "type": "module",
