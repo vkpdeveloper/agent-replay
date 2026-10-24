@@ -2,6 +2,7 @@
 import { homedir } from "node:os";
 import { basename, resolve } from "node:path";
 import { parseArgs } from "node:util";
+import { version } from "../package.json";
 import { buildHtml } from "./html.ts";
 import { layout } from "./layout/index.ts";
 import { parseSession } from "./parse/index.ts";
@@ -24,6 +25,7 @@ Options
       --speed <n>      Playback speed multiplier (default 1).
       --turns <a-b>    Keep only user turns a through b, e.g. 2-4 or 3.
       --json           Write the replay data as JSON instead.
+  -v, --version
   -h, --help
 
 Secrets (API keys, tokens, passwords, private keys, credentials in URLs) are
@@ -39,8 +41,14 @@ const { values, positionals } = parseArgs({
     json: { type: "boolean" },
     limit: { type: "string" },
     help: { type: "boolean", short: "h" },
+    version: { type: "boolean", short: "v" },
   },
 });
+
+if (values.version) {
+  console.log(version);
+  process.exit(0);
+}
 
 if (values.help) {
   console.log(HELP);

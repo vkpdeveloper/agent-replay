@@ -1,9 +1,16 @@
-import type { CSSProperties } from "react";
 import type { Tone } from "../replay.ts";
 import type { Agent } from "../session.ts";
 
+export interface ToneStyle {
+  color: string;
+  bg?: string;
+  bold?: boolean;
+  italic?: boolean;
+}
+
 export interface Palette {
-  backdrop: string;
+  /** Colours of the 135deg backdrop gradient, at 0%, 55% and 100%. */
+  backdrop: [string, string, string];
   window: string;
   titlebar: string;
   border: string;
@@ -13,11 +20,11 @@ export interface Palette {
   shimmer: string;
   userBg: string;
   inputBg: string;
-  tones: Record<Tone, CSSProperties>;
+  tones: Record<Tone, ToneStyle>;
 }
 
 function palette(base: {
-  backdrop: string;
+  backdrop: [string, string, string];
   fg: string;
   dim: string;
   acc: string;
@@ -34,14 +41,14 @@ function palette(base: {
     tones: {
       fg: { color: base.fg },
       dim: { color: base.dim },
-      b: { color: base.fg, fontWeight: 700 },
-      i: { color: base.dim, fontStyle: "italic" },
+      b: { color: base.fg, bold: true },
+      i: { color: base.dim, italic: true },
       acc: { color: base.acc },
       ok: { color: "#4eba65" },
       err: { color: "#ff6b80" },
       warn: { color: "#e5c07b" },
-      add: { color: "#e6f4e8", backgroundColor: "#1f4a2a" },
-      del: { color: "#f7e4e6", backgroundColor: "#5c2229" },
+      add: { color: "#e6f4e8", bg: "#1f4a2a" },
+      del: { color: "#f7e4e6", bg: "#5c2229" },
       code: { color: base.code },
       num: { color: "#5f5f5f" },
     },
@@ -50,7 +57,7 @@ function palette(base: {
 
 export const palettes: Record<Agent, Palette> = {
   claude: palette({
-    backdrop: "linear-gradient(135deg, #3a2219 0%, #120d0b 55%, #0a0a0a 100%)",
+    backdrop: ["#3a2219", "#120d0b", "#0a0a0a"],
     fg: "#ebe9e6",
     dim: "#8f8b87",
     acc: "#d97757",
@@ -60,7 +67,7 @@ export const palettes: Record<Agent, Palette> = {
     inputBg: "#131313",
   }),
   codex: palette({
-    backdrop: "linear-gradient(135deg, #10263a 0%, #0b1017 55%, #0a0a0a 100%)",
+    backdrop: ["#10263a", "#0b1017", "#0a0a0a"],
     fg: "#e6e8eb",
     dim: "#8b9097",
     acc: "#5fc7f0",

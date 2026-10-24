@@ -1,0 +1,73 @@
+# Builds agent-replay on each platform, smoke-tests HTML and MP4 output, and
+# publishes the archives to a GitHub release when a v* tag is pushed.
+# skill/agent-replay/replay.sh downloads these archives by name.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-15, target: darwin-arm64 }
+          - { os: macos-15-intel, target: darwin-x64 }
+          - { os: ubuntu-24.04, target: linux-x64 }
+          - { os: ubuntu-24.04-arm, target: linux-arm64 }
+          - { os: windows-2025, target: windows-x64 }
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      EXE: ${{ startsWith(matrix.target, 'windows') && '.exe' || '' }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.0
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck && bun test
+      - run: bun run build
+
+      - name: Smoke test
+        working-directory: dist
+        run: |
+          # Remotion caches Chrome next to the nearest package.json, as in an install.
+          echo '{ "private": true }' > package.json
+          version=$(./agent-replay$EXE --version)
+          if [[ "$GITHUB_REF" == refs/tags/* && "v$version" != "$GITHUB_REF_NAME" ]]; then
+            echo "Tag $GITHUB_REF_NAME does not match package.json version $version" >&2
+            exit 1
+          fi
+          ./agent-replay$EXE ../scripts/smoke.jsonl -o smoke.html
+          ./agent-replay$EXE ../scripts/smoke.jsonl -o smoke.mp4
+          test -s smoke.html && test -s smoke.mp4
+
+      - name: Package
+        working-directory: dist
+        run: tar -czf ../agent-replay-${{ matrix.target }}.tar.gz agent-replay$EXE site compositor package.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: agent-replay-${{ matrix.target }}
+          path: agent-replay-${{ matrix.target }}.tar.gz
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+      - run: gh release create "$GITHUB_REF_NAME" out/*.tar.gz --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}

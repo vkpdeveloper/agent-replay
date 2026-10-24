@@ -9,12 +9,13 @@ import { join } from "node:path";
 const root = join(import.meta.dir, "..");
 const dist = join(root, "dist");
 const prefix = process.env.AGENT_REPLAY_HOME ?? join(homedir(), ".local", "share", "agent-replay");
+const exe = process.platform === "win32" ? "agent-replay.exe" : "agent-replay";
 const bin = join(homedir(), ".local", "bin", "agent-replay");
 
 await $`bun ${join(import.meta.dir, "build.ts")}`;
 
 await mkdir(prefix, { recursive: true });
-for (const name of ["agent-replay", "site", "compositor"]) {
+for (const name of [exe, "site", "compositor"]) {
   await rm(join(prefix, name), { recursive: true, force: true });
   await cp(join(dist, name), join(prefix, name), { recursive: true });
 }
@@ -31,5 +32,5 @@ if (existsSync(chrome) && !existsSync(installedChrome)) {
 
 await mkdir(join(homedir(), ".local", "bin"), { recursive: true });
 await rm(bin, { force: true });
-await symlink(join(prefix, "agent-replay"), bin);
-console.log(`installed ${bin} -> ${join(prefix, "agent-replay")}`);
+await symlink(join(prefix, exe), bin);
+console.log(`installed ${bin} -> ${join(prefix, exe)}`);

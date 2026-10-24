@@ -1,13 +1,19 @@
-import { memo, type CSSProperties } from "react";
-import { AbsoluteFill, useCurrentFrame } from "remotion";
+import { useLayoutEffect, useRef } from "react";
+import { useCurrentFrame } from "remotion";
 import { CHROME_ROWS, HEIGHT, WIDTH, type Line, type Prompt, type Replay as ReplayData, type Span, type Status } from "../replay.ts";
-import { MONO, SANS, palettes, type Palette } from "./palette.ts";
+import { MONO, SANS, palettes, type Palette, type ToneStyle } from "./palette.ts";
 
 export interface ReplayProps extends Record<string, unknown> {
   replay: ReplayData;
 }
 
-const WINDOW = { left: 48, top: 36, width: WIDTH - 96, height: HEIGHT - 84 };
+// The whole frame is drawn on one canvas. The web renderer copies a canvas
+// as a single image instead of rasterising every DOM node, which makes
+// in-browser MP4 export about 9x faster, and playback costs a few draw calls.
+
+/** Inside of the 1px window border. */
+const WINDOW = { left: 49, top: 37, width: WIDTH - 98, height: HEIGHT - 86 };
+const RADIUS = 14;
 const TITLEBAR = 40;
 const PAD_X = 28;
 const PAD_Y = 18;
@@ -16,93 +22,147 @@ const LINE = 28;
 /** Frames a new row takes to slide in; also how far the scroll position lags behind. */
 const SLIDE = 5;
 const SPINNER = ["·", "✢", "✳", "✶", "✻", "✽", "✻", "✶", "✳", "✢"];
+const LIGHTS = ["#ff5f57", "#febc2e", "#28c840"];
 
 export const Replay = ({ replay }: ReplayProps) => {
   const frame = useCurrentFrame();
-  const colors = palettes[replay.agent];
-  const fontSize = (WINDOW.width - PAD_X * 2) / (replay.cols * 0.605);
-  const transcriptRows = replay.rows - CHROME_ROWS;
-
-  return (
-    <AbsoluteFill style={{ backgroundImage: colors.backdrop, fontFamily: MONO }}>
-      <div
-        style={{
-          position: "absolute",
-          ...WINDOW,
-          borderRadius: 14,
-          overflow: "hidden",
-          backgroundColor: colors.window,
-          border: `1px solid ${colors.border}`,
-        }}
-      >
-        <TitleBar replay={replay} colors={colors} />
-        <div
-          style={{
-            position: "absolute",
-            top: TITLEBAR + PAD_Y,
-            left: PAD_X,
-            right: PAD_X,
-            bottom: PAD_Y,
-            fontSize,
-            lineHeight: `${LINE}px`,
-            color: colors.fg,
-            fontVariantLigatures: "none",
-          }}
-        >
-          <Transcript lines={replay.lines} frame={frame} rows={transcriptRows} colors={colors} />
-          <div style={{ position: "absolute", left: 0, right: 0, top: transcriptRows * LINE }}>
-            {replay.agent === "claude" ? (
-              <ClaudeInput replay={replay} frame={frame} colors={colors} />
-            ) : (
-              <CodexInput replay={replay} frame={frame} colors={colors} />
-            )}
-          </div>
-        </div>
-      </div>
-      <div
-        style={{
-          position: "absolute",
-          right: WINDOW.left,
-          bottom: 14,
-          fontFamily: SANS,
-          fontSize: 15,
-          color: "rgba(255,255,255,0.32)",
-        }}
-      >
-        agent-replay
-      </div>
-    </AbsoluteFill>
-  );
+  const canvas = useRef<HTMLCanvasElement>(null);
+  useLayoutEffect(() => {
+    const ctx = canvas.current?.getContext("2d");
+    if (ctx) draw(ctx, replay, frame);
+  }, [replay, frame]);
+  return <canvas ref={canvas} width={WIDTH} height={HEIGHT} style={{ display: "block" }} />;
 };
 
-const TitleBar = ({ replay, colors }: { replay: ReplayData; colors: Palette }) => {
+type Ctx = CanvasRenderingContext2D;
+
+/** Draws text runs left to right on one terminal row. */
+interface Pen {
+  ctx: Ctx;
+  colors: Palette;
+  size: number;
+  /** Baseline offset from the top of a row. */
+  baseline: number;
+  x: number;
+  top: number;
+}
+
+function draw(ctx: Ctx, replay: ReplayData, frame: number) {
+  const colors = palettes[replay.agent];
+  ctx.textBaseline = "alphabetic";
+  ctx.globalAlpha = 1;
+
+  backdrop(ctx, colors);
+  ctx.save();
+  roundRect(ctx, WINDOW.left - 1, WINDOW.top - 1, WINDOW.width + 2, WINDOW.height + 2, RADIUS, colors.border);
+  roundRect(ctx, WINDOW.left, WINDOW.top, WINDOW.width, WINDOW.height, RADIUS - 1, colors.window);
+  ctx.clip();
+  ctx.translate(WINDOW.left, WINDOW.top);
+  titleBar(ctx, replay, colors);
+
+  ctx.translate(PAD_X, TITLEBAR + PAD_Y);
+  const size = (WINDOW.width + 2 - PAD_X * 2) / (replay.cols * 0.605);
+  ctx.font = font(size);
+  const metrics = ctx.measureText("M");
+  const pen: Pen = {
+    ctx,
+    colors,
+    size,
+    baseline: (LINE - metrics.fontBoundingBoxAscent - metrics.fontBoundingBoxDescent) / 2 + metrics.fontBoundingBoxAscent,
+    x: 0,
+    top: 0,
+  };
+  const width = WINDOW.width - PAD_X * 2;
+  const transcriptRows = replay.rows - CHROME_ROWS;
+  transcript(pen, replay.lines, frame, transcriptRows, width);
+  pen.top = transcriptRows * LINE;
+  if (replay.agent === "claude") claudeInput(pen, replay, frame, width);
+  else codexInput(pen, replay, frame, width);
+  ctx.restore();
+
+  ctx.font = `15px ${SANS}`;
+  ctx.textAlign = "right";
+  ctx.fillStyle = "rgba(255,255,255,0.32)";
+  ctx.fillText("agent-replay", WIDTH - 48, HEIGHT - 14 - ctx.measureText("a").fontBoundingBoxDescent);
+  ctx.textAlign = "left";
+}
+
+/** The CSS `linear-gradient(135deg, a 0%, b 55%, c 100%)` the DOM version used. */
+function backdrop(ctx: Ctx, colors: Palette) {
+  const half = ((WIDTH + HEIGHT) * Math.SQRT1_2) / 2;
+  const d = half * Math.SQRT1_2;
+  const gradient = ctx.createLinearGradient(WIDTH / 2 - d, HEIGHT / 2 - d, WIDTH / 2 + d, HEIGHT / 2 + d);
+  const [a, b, c] = colors.backdrop;
+  gradient.addColorStop(0, a);
+  gradient.addColorStop(0.55, b);
+  gradient.addColorStop(1, c);
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, WIDTH, HEIGHT);
+}
+
+function roundRect(ctx: Ctx, x: number, y: number, w: number, h: number, r: number, fill: string) {
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, r);
+  ctx.fillStyle = fill;
+  ctx.fill();
+}
+
+function titleBar(ctx: Ctx, replay: ReplayData, colors: Palette) {
+  ctx.fillStyle = colors.titlebar;
+  ctx.fillRect(0, 0, WINDOW.width, TITLEBAR);
+  ctx.fillStyle = colors.border;
+  ctx.fillRect(0, TITLEBAR, WINDOW.width, 1);
+  LIGHTS.forEach((color, i) => {
+    ctx.beginPath();
+    ctx.arc(18 + 6.5 + i * 21, 13 + 6.5, 6.5, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+  });
+
   const folder = replay.cwd.split("/").filter(Boolean).pop() ?? "~";
   const title = replay.agent === "claude" ? `✳ ${replay.title || "Claude Code"}` : `codex — ${folder}`;
-  return (
-    <div
-      style={{
-        position: "absolute",
-        inset: 0,
-        height: TITLEBAR,
-        backgroundColor: colors.titlebar,
-        borderBottom: `1px solid ${colors.border}`,
-        fontFamily: SANS,
-        fontSize: 15,
-        color: colors.dim,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      <div style={{ position: "absolute", left: 18, top: 13, display: "flex", gap: 8 }}>
-        {["#ff5f57", "#febc2e", "#28c840"].map((color) => (
-          <div key={color} style={{ width: 13, height: 13, borderRadius: 7, backgroundColor: color }} />
-        ))}
-      </div>
-      <span style={{ maxWidth: "70%", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{title}</span>
-    </div>
-  );
-};
+  ctx.font = `15px ${SANS}`;
+  const metrics = ctx.measureText(title);
+  const ascent = metrics.fontBoundingBoxAscent;
+  ctx.textAlign = "center";
+  ctx.fillStyle = colors.dim;
+  ctx.fillText(ellipsis(ctx, title, WINDOW.width * 0.7), WINDOW.width / 2, (TITLEBAR - ascent - metrics.fontBoundingBoxDescent) / 2 + ascent);
+  ctx.textAlign = "left";
+}
+
+function ellipsis(ctx: Ctx, text: string, max: number): string {
+  if (ctx.measureText(text).width <= max) return text;
+  let end = text.length;
+  while (end > 0 && ctx.measureText(`${text.slice(0, end)}…`).width > max) end--;
+  return `${text.slice(0, end)}…`;
+}
+
+function font(size: number, style?: ToneStyle): string {
+  return `${style?.italic ? "italic " : ""}${style?.bold ? "700 " : ""}${size}px ${MONO}`;
+}
+
+/** Draws `text` at the pen and advances it. */
+function run(pen: Pen, text: string, style: ToneStyle) {
+  const { ctx } = pen;
+  ctx.font = font(pen.size, style);
+  const width = ctx.measureText(text).width;
+  if (style.bg) {
+    ctx.fillStyle = style.bg;
+    ctx.fillRect(pen.x, pen.top, width, LINE);
+  }
+  ctx.fillStyle = style.color;
+  ctx.fillText(text, pen.x, pen.top + pen.baseline);
+  pen.x += width;
+}
+
+function row(pen: Pen, top: number, bg?: string, width = 0) {
+  pen.x = 0;
+  pen.top = top;
+  if (bg) {
+    pen.ctx.fillStyle = bg;
+    pen.ctx.fillRect(0, top, width, LINE);
+  }
+}
 
 /** Index of the first line whose `at` is greater than `frame`, i.e. how many lines are visible. */
 function visibleCount(lines: Line[], frame: number): number {
@@ -116,7 +176,8 @@ function visibleCount(lines: Line[], frame: number): number {
   return lo;
 }
 
-const Transcript = ({ lines, frame, rows, colors }: { lines: Line[]; frame: number; rows: number; colors: Palette }) => {
+function transcript(pen: Pen, lines: Line[], frame: number, rows: number, width: number) {
+  const { ctx, colors } = pen;
   const count = visibleCount(lines, frame);
   // Rows that appeared in the last SLIDE frames count fractionally, so the
   // transcript glides up instead of jumping a row at a time.
@@ -129,45 +190,24 @@ const Transcript = ({ lines, frame, rows, colors }: { lines: Line[]; frame: numb
   const offset = (top - first) * LINE;
   const last = Math.min(count, first + rows + 1);
 
-  const visible = [];
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, width, rows * LINE);
+  ctx.clip();
   for (let i = first; i < last; i++) {
     const line = lines[i]!;
     const dot = line.dot ? dotTone(line.dot, frame) : undefined;
-    const fresh = Math.min(1, (frame - line.at + 1) / SLIDE);
-    visible.push(<Row key={i} line={line} y={(i - first) * LINE - offset} dot={dot} opacity={fresh} colors={colors} />);
+    ctx.globalAlpha = Math.min(1, (frame - line.at + 1) / SLIDE);
+    row(pen, (i - first) * LINE - offset, line.bg === "user" ? colors.userBg : undefined, width);
+    line.s.forEach((span, j) => run(pen, span[0], colors.tones[j === 0 && dot ? dot : (span[1] ?? "fg")]));
   }
-  return <div style={{ position: "absolute", left: 0, right: 0, top: 0, height: rows * LINE, overflow: "hidden" }}>{visible}</div>;
-};
+  ctx.restore();
+}
 
 function dotTone([done, ok]: [number, 0 | 1], frame: number): Span[1] {
   if (frame >= done) return ok ? "ok" : "err";
   return Math.floor(frame / 9) % 2 === 0 ? "fg" : "dim";
 }
-
-const Row = memo(
-  ({ line, y, dot, opacity, colors }: { line: Line; y: number; dot: Span[1] | undefined; opacity: number; colors: Palette }) => (
-    <div
-      style={{
-        position: "absolute",
-        left: 0,
-        right: 0,
-        top: 0,
-        height: LINE,
-        translate: `0 ${y}px`,
-        opacity,
-        whiteSpace: "pre",
-        overflow: "hidden",
-        backgroundColor: line.bg === "user" ? colors.userBg : undefined,
-      }}
-    >
-      {line.s.map((span, i) => (
-        <span key={i} style={colors.tones[i === 0 && dot ? dot : (span[1] ?? "fg")]}>
-          {span[0]}
-        </span>
-      ))}
-    </div>
-  ),
-);
 
 function activeAt<T extends { from: number; to: number }>(items: T[], frame: number): T | undefined {
   let lo = 0;
@@ -197,97 +237,86 @@ function elapsed(status: Status, frame: number): string {
 }
 
 /** Label with a highlight sweeping across it, like the agents' own working indicators. */
-const Shimmer = ({ text, frame, base, glow }: { text: string; frame: number; base: string; glow: string }) => {
+function shimmer(pen: Pen, text: string, frame: number, base: string, glow: string) {
   const head = ((frame * 0.7) % (text.length + 14)) - 7;
-  return (
-    <>
-      {Array.from(text, (char, i) => (
-        <span key={i} style={{ color: Math.abs(i - head) < 2.5 ? glow : base }}>
-          {char}
-        </span>
-      ))}
-    </>
-  );
-};
+  Array.from(text).forEach((char, i) => run(pen, char, { color: Math.abs(i - head) < 2.5 ? glow : base }));
+}
 
-const Cursor = ({ frame, typing, colors }: { frame: number; typing: boolean; colors: Palette }) => (
-  <span style={{ backgroundColor: typing || Math.floor(frame / 16) % 2 === 0 ? colors.fg : "transparent", color: colors.window }}> </span>
-);
+function cursor(pen: Pen, frame: number, typing: boolean) {
+  const width = pen.ctx.measureText(" ").width;
+  if (typing || Math.floor(frame / 16) % 2 === 0) {
+    pen.ctx.fillStyle = pen.colors.fg;
+    pen.ctx.fillRect(pen.x, pen.top, width, LINE);
+  }
+  pen.x += width;
+}
 
 function fit(text: string, cells: number): string {
   return text.length > cells ? text.slice(text.length - cells) : text;
 }
 
-const rowStyle: CSSProperties = { height: LINE, whiteSpace: "pre", overflow: "hidden" };
+/** The "? for shortcuts" row with the model name on the right. */
+function footer(pen: Pen, model: string, width: number) {
+  const dim = { color: pen.colors.dim };
+  run(pen, "  ? for shortcuts", dim);
+  pen.ctx.font = font(pen.size);
+  pen.x = width - pen.ctx.measureText(model).width;
+  run(pen, model, dim);
+}
 
-const ClaudeInput = ({ replay, frame, colors }: { replay: ReplayData; frame: number; colors: Palette }) => {
+function claudeInput(pen: Pen, replay: ReplayData, frame: number, width: number) {
+  const { colors } = pen;
+  const top = pen.top;
   const status = activeAt(replay.status, frame);
   const { text, typing } = draft(activeAt(replay.prompts, frame), frame);
   const inner = replay.cols - 4;
   const shown = fit(text, inner - 3);
-  const glyph = SPINNER[Math.floor(frame / 4) % SPINNER.length];
-  const border = { color: colors.dim };
-  return (
-    <>
-      <div style={rowStyle}>
-        {status && (
-          <>
-            <span style={{ color: colors.acc }}>{glyph} </span>
-            <Shimmer text={`${status.label}…`} frame={frame} base={colors.acc} glow={colors.shimmer} />
-            <span style={{ color: colors.dim }}> ({elapsed(status, frame)} · </span>
-            <span style={{ color: colors.dim, fontWeight: 700 }}>esc</span>
-            <span style={{ color: colors.dim }}> to interrupt)</span>
-          </>
-        )}
-      </div>
-      <div style={rowStyle} />
-      <div style={{ ...rowStyle, ...border }}>{`╭${"─".repeat(replay.cols - 2)}╮`}</div>
-      <div style={rowStyle}>
-        <span style={border}>│ </span>
-        <span style={{ color: colors.dim }}>{"> "}</span>
-        <span>{shown}</span>
-        <Cursor frame={frame} typing={typing} colors={colors} />
-        <span>{" ".repeat(Math.max(0, inner - 3 - shown.length))}</span>
-        <span style={border}> │</span>
-      </div>
-      <div style={{ ...rowStyle, ...border }}>{`╰${"─".repeat(replay.cols - 2)}╯`}</div>
-      <div style={{ ...rowStyle, color: colors.dim, display: "flex", justifyContent: "space-between" }}>
-        <span>{"  ? for shortcuts"}</span>
-        <span>{replay.model}</span>
-      </div>
-    </>
-  );
-};
+  const dim = { color: colors.dim };
 
-const CodexInput = ({ replay, frame, colors }: { replay: ReplayData; frame: number; colors: Palette }) => {
+  row(pen, top);
+  if (status) {
+    run(pen, `${SPINNER[Math.floor(frame / 4) % SPINNER.length]} `, { color: colors.acc });
+    shimmer(pen, `${status.label}…`, frame, colors.acc, colors.shimmer);
+    run(pen, ` (${elapsed(status, frame)} · `, dim);
+    run(pen, "esc", { ...dim, bold: true });
+    run(pen, " to interrupt)", dim);
+  }
+  row(pen, top + LINE * 2);
+  run(pen, `╭${"─".repeat(replay.cols - 2)}╮`, dim);
+  row(pen, top + LINE * 3);
+  run(pen, "│ ", dim);
+  run(pen, "> ", dim);
+  run(pen, shown, { color: colors.fg });
+  cursor(pen, frame, typing);
+  run(pen, " ".repeat(Math.max(0, inner - 3 - shown.length)), { color: colors.fg });
+  run(pen, " │", dim);
+  row(pen, top + LINE * 4);
+  run(pen, `╰${"─".repeat(replay.cols - 2)}╯`, dim);
+  row(pen, top + LINE * 5);
+  footer(pen, replay.model, width);
+}
+
+function codexInput(pen: Pen, replay: ReplayData, frame: number, width: number) {
+  const { colors } = pen;
+  const top = pen.top;
   const status = activeAt(replay.status, frame);
   const { text, typing } = draft(activeAt(replay.prompts, frame), frame);
   const shown = fit(text, replay.cols - 6);
-  const block: CSSProperties = { ...rowStyle, backgroundColor: colors.inputBg };
-  return (
-    <>
-      <div style={rowStyle}>
-        {status && (
-          <>
-            <span style={{ color: colors.dim }}>• </span>
-            <Shimmer text={status.label} frame={frame} base={colors.dim} glow={colors.shimmer} />
-            <span style={{ color: colors.dim }}> ({elapsed(status, frame)} • esc to interrupt)</span>
-          </>
-        )}
-      </div>
-      <div style={block} />
-      <div style={block}>
-        <span style={{ fontWeight: 700 }}>{"› "}</span>
-        {shown ? <span>{shown}</span> : null}
-        <Cursor frame={frame} typing={typing} colors={colors} />
-        {!shown && <span style={{ color: colors.dim }}>Ask Codex to do anything</span>}
-      </div>
-      <div style={block} />
-      <div style={rowStyle} />
-      <div style={{ ...rowStyle, color: colors.dim, display: "flex", justifyContent: "space-between" }}>
-        <span>{"  ? for shortcuts"}</span>
-        <span>{replay.model}</span>
-      </div>
-    </>
-  );
-};
+  const dim = { color: colors.dim };
+
+  row(pen, top);
+  if (status) {
+    run(pen, "• ", dim);
+    shimmer(pen, status.label, frame, colors.dim, colors.shimmer);
+    run(pen, ` (${elapsed(status, frame)} • esc to interrupt)`, dim);
+  }
+  row(pen, top + LINE, colors.inputBg, width);
+  row(pen, top + LINE * 2, colors.inputBg, width);
+  run(pen, "› ", { color: colors.fg, bold: true });
+  if (shown) run(pen, shown, { color: colors.fg });
+  cursor(pen, frame, typing);
+  if (!shown) run(pen, "Ask Codex to do anything", dim);
+  row(pen, top + LINE * 3, colors.inputBg, width);
+  row(pen, top + LINE * 5);
+  footer(pen, replay.model, width);
+}

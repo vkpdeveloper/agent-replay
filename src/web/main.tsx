@@ -35,6 +35,8 @@ const App = () => {
         },
         inputProps: { replay },
         videoBitrate: "high",
+        // Yield to the page every 100 ms so the progress label still updates.
+        pageResponsiveness: "low",
         muted: true,
         frameRange: [0, replay.durationInFrames - 1],
         onProgress: ({ progress }) => setProgress(progress),

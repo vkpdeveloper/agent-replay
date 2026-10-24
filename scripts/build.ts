@@ -42,7 +42,8 @@ if (process.argv.includes("--player")) process.exit(0);
 await bundle({ entryPoint: join(root, "src/video/entry.ts"), outDir: join(dist, "site") });
 console.log("built dist/site");
 
-const platform = process.platform === "linux" ? "linux-" + process.arch + "-gnu" : `${process.platform}-${process.arch}`;
+const suffix = process.platform === "linux" ? "-gnu" : process.platform === "win32" ? "-msvc" : "";
+const platform = `${process.platform}-${process.arch}${suffix}`;
 const compositor = dirname(createRequire(import.meta.url).resolve(`@remotion/compositor-${platform}/package.json`));
 await cp(compositor, join(dist, "compositor"), { recursive: true });
 console.log("copied dist/compositor");
