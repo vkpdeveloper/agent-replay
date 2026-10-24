@@ -7,7 +7,7 @@ description: Turn a Claude Code or Codex session into an MP4 that looks like the
 
 Run everything through `replay.sh` next to this file. On first use it downloads
 the latest `agent-replay` release for this OS and CPU from GitHub into
-`~/.local/share/agent-replay` (about 30 MB), and it checks for a newer release
+`~/.local/share/agent-replay` (a 40 to 60 MB download), and it checks for a newer release
 at most once a day, so never install anything by hand. The first MP4 on a
 machine also downloads Chrome Headless Shell, so allow a few minutes for it.
 
