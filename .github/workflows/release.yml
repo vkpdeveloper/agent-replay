@@ -1,4 +1,4 @@
-# Builds agent-replay on each platform, smoke-tests HTML and MP4 output, and
+# Builds agent-replay on each platform, smoke-tests HTML, MP4 and GIF output, and
 # publishes the archives to a GitHub release when a v* tag is pushed.
 # skill/agent-replay/replay.sh downloads these archives by name.
 name: Release
@@ -49,7 +49,8 @@ jobs:
           fi
           ./agent-replay$EXE ../scripts/smoke.jsonl -o smoke.html
           ./agent-replay$EXE ../scripts/smoke.jsonl -o smoke.mp4 --format vertical --title Smoke --cut "1-3: Smoke test"
-          test -s smoke.html && test -s smoke.mp4
+          ./agent-replay$EXE ../scripts/smoke.jsonl -o smoke.gif
+          test -s smoke.html && test -s smoke.mp4 && test -s smoke.gif
 
       - name: Package
         working-directory: dist

@@ -11,12 +11,15 @@ const installed = existsSync(join(home, "site", "index.html"));
 
 // Remotion logs a progress line every 10 MB, which floods an agent's tool output.
 const onBrowserDownload: OnBrowserDownload = () => {
-  process.stderr.write("Downloading Chrome Headless Shell (about 170 MB, first MP4 only)\n");
+  process.stderr.write("Downloading Chrome Headless Shell (about 170 MB, first video only)\n");
   return { version: null, onProgress: () => {} };
 };
 
-/** Renders the replay to H.264 with headless Chrome. The first run downloads Chrome Headless Shell. */
-export async function renderMp4(replay: Replay, outputLocation: string, onProgress: (progress: number) => void) {
+/**
+ * Renders the replay with headless Chrome: H.264 for .mp4, or a looping GIF at
+ * 10 fps and half size for .gif. The first run downloads Chrome Headless Shell.
+ */
+export async function renderVideo(replay: Replay, outputLocation: string, onProgress: (progress: number) => void) {
   let serveUrl: string;
   if (installed) {
     serveUrl = join(home, "site");
@@ -29,11 +32,11 @@ export async function renderMp4(replay: Replay, outputLocation: string, onProgre
   const binariesDirectory = installed ? join(home, "compositor") : null;
   const inputProps = { replay };
   const composition = await selectComposition({ serveUrl, id: COMPOSITION_ID, inputProps, binariesDirectory, onBrowserDownload });
+  const gif = outputLocation.endsWith(".gif");
   await renderMedia({
     composition,
     serveUrl,
-    codec: "h264",
-    crf: 18,
+    ...(gif ? { codec: "gif", everyNthFrame: 3, scale: 0.5, numberOfGifLoops: null } : { codec: "h264", crf: 18 }),
     imageFormat: "jpeg",
     jpegQuality: 92,
     concurrency: Math.max(1, Math.min(8, cpus().length - 1)),
