@@ -19,6 +19,7 @@ describe("redact masks", () => {
     ["json password", '{"password": "correct horse"}', '"password": "'],
     ["yaml secret", "client_secret: 9f8e7d6c5b4a", "client_secret: "],
     ["cli flag", "mysql --password=Tr0ub4dor&3", "--password="],
+    ["password in a chat", fake("update the box, my password is ", "Hk!@#7731", " ok"), "my password is "],
     ["unprefixed token", fake("CLOUDFLARE_API_TOKEN=", "Xk9fQ2mZ7vL0pR4t", "W8yB3nC6hJ1sD5gA"), "CLOUDFLARE_API_TOKEN="],
     ["bare random token", fake("use this: ", "q7Rk2LmZx9VbN4tYp0Wc", "J6sHf3GdA8eU1KoT"), ""],
   ];

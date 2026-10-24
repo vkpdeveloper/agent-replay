@@ -36,6 +36,8 @@ const QUOTED_ASSIGNMENT = new RegExp(`(["']?\\b${SENSITIVE_NAME}["']?\\s*[:=]\\s
 const BARE_ASSIGNMENT = new RegExp(`(\\b${SENSITIVE_NAME}\\s*[:=]\\s*)([^\\s"'\`,;{}()\\[\\]<>]{6,})`, "gi");
 // --password value / --token=value
 const FLAG = /(--?(?:password|passwd|pass|token|api-key|apikey|secret|auth|key)(?:=|\s+))([^\s"'`-][^\s"'`]{5,})/gi;
+// Typed in a chat: "my password is hunter2", "the passcode was 1234"
+const PROSE = /(\b(?:password|passwd|passcode|passphrase|pwd|pin)\s+(?:is|was|=)\s*:?\s*)([^\s"'`]{4,})/gi;
 
 export function redact(text: string, home?: string): string {
   let out = text;
@@ -62,6 +64,7 @@ export function redact(text: string, home?: string): string {
     isMaskableBare(value) ? `${lead}${MASK}` : match,
   );
   out = out.replace(FLAG, (match, lead: string, value: string) => (isMaskableBare(value) ? `${lead}${MASK}` : match));
+  out = out.replace(PROSE, (match, lead: string, value: string) => (value.includes(MASK) ? match : `${lead}${MASK}`));
 
   return maskHighEntropy(out);
 }
