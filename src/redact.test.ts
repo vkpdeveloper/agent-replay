@@ -20,6 +20,11 @@ describe("redact masks", () => {
     ["yaml secret", "client_secret: 9f8e7d6c5b4a", "client_secret: "],
     ["cli flag", "mysql --password=Tr0ub4dor&3", "--password="],
     ["password in a chat", fake("update the box, my password is ", "Hk!@#7731", " ok"), "my password is "],
+    ["password without a verb", fake("ssh in and use the password ", "Hk!@#7731", " when asked"), "use the password "],
+    ["quoted password in a chat", fake('my password is "', "Hk!@#7731", '" ok'), 'my password is "'],
+    ["password before the word", fake("log in, ", "Hk!@#7731", " is the password"), " is the password"],
+    ["sudo password on stdin", fake("printf '%s\\n' '", "Hk!@#7731", "' | ssh dell 'sudo -S pacman -Syu'"), "sudo -S pacman"],
+    ["message that is only a password", fake("Hk!@#", "7731x"), ""],
     ["unprefixed token", fake("CLOUDFLARE_API_TOKEN=", "Xk9fQ2mZ7vL0pR4t", "W8yB3nC6hJ1sD5gA"), "CLOUDFLARE_API_TOKEN="],
     ["bare random token", fake("use this: ", "q7Rk2LmZx9VbN4tYp0Wc", "J6sHf3GdA8eU1KoT"), ""],
   ];

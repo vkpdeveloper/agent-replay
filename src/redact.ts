@@ -37,7 +37,15 @@ const BARE_ASSIGNMENT = new RegExp(`(\\b${SENSITIVE_NAME}\\s*[:=]\\s*)([^\\s"'\`
 // --password value / --token=value
 const FLAG = /(--?(?:password|passwd|pass|token|api-key|apikey|secret|auth|key)(?:=|\s+))([^\s"'`-][^\s"'`]{5,})/gi;
 // Typed in a chat: "my password is hunter2", "the passcode was 1234"
-const PROSE = /(\b(?:password|passwd|passcode|passphrase|pwd|pin)\s+(?:is|was|=)\s*:?\s*)([^\s"'`]{4,})/gi;
+const PROSE = /(\b(?:password|passwd|passcode|passphrase|pwd|pin)\s+(?:is|was|=)\s*:?\s*["'`]?)([^\s"'`]{4,})/gi;
+// "use the password Hk!@#7731": no verb, so only a value with a digit or symbol, not "password reset".
+const PROSE_BARE = /(\b(?:password|passwd|passcode|passphrase)\s+)((?=[^\s"'`]*[\d!@#$%^&*])[^\s"'`]{6,})/gi;
+// "Hk!@#7731 is the password"
+const PROSE_BEFORE = /(?<![^\s"'`])((?=[^\s"'`]*[\d!@#$%^&*])[^\s"'`]{6,})(\s+is\s+(?:the\s+|my\s+)?(?:password|passcode)\b)/gi;
+// echo 'Hk!@#7731' | sudo -S ..., also through ssh
+const SUDO_STDIN = /(\b(?:echo|printf(?:\s+'%s\\n')?)\s+)(["']?)([^\s"'|]+)\2(\s*\|[^\n]*\bsudo\s+-S)/g;
+// A whole message that is one password-like word: the answer to "what is the password?"
+const LONE_SECRET = /^(?=\S*[A-Za-z])(?=\S*\d)(?=\S*[!@#$%^&*])[^\s/.]{8,64}$/;
 
 export function redact(text: string, home?: string): string {
   let out = text;
@@ -65,6 +73,12 @@ export function redact(text: string, home?: string): string {
   );
   out = out.replace(FLAG, (match, lead: string, value: string) => (isMaskableBare(value) ? `${lead}${MASK}` : match));
   out = out.replace(PROSE, (match, lead: string, value: string) => (value.includes(MASK) ? match : `${lead}${MASK}`));
+  out = out.replace(PROSE_BARE, (match, lead: string, value: string) => (value.includes(MASK) ? match : `${lead}${MASK}`));
+  out = out.replace(PROSE_BEFORE, (match, value: string, tail: string) => (value.includes(MASK) ? match : `${MASK}${tail}`));
+  out = out.replace(SUDO_STDIN, (match, lead: string, quote: string, value: string, tail: string) =>
+    value.includes(MASK) ? match : `${lead}${quote}${MASK}${quote}${tail}`,
+  );
+  if (!out.includes(MASK) && LONE_SECRET.test(out.trim())) return MASK;
 
   return maskHighEntropy(out);
 }
