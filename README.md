@@ -6,7 +6,7 @@ Turn your Claude Code, Codex or OpenCode sessions into videos that look like the
 real terminal. Ask for a highlight and your agent cuts it down to the good parts,
 with captions.
 
-[![Demo: OpenCode makes its own highlight reel](docs/demo.gif)](docs/demo.mp4)
+[![Demo: Claude Code fixes a broken .env, then replays itself](docs/demo.gif)](docs/demo.mp4)
 
 ## Install
 
