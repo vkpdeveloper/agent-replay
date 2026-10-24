@@ -19,6 +19,7 @@ Then ask your agent:
 - "make a replay of this session"
 - "make a vertical highlight of this session so I can post it"
 - "make a square video of turns 2 to 4 at 2x speed"
+- "add a replay to the PR"
 
 The skill downloads the right binary for your machine on first use and keeps it
 updated. Works on macOS, Linux and Windows.
@@ -27,6 +28,7 @@ updated. Works on macOS, Linux and Windows.
 
 - **MP4** in landscape (1920x1080), vertical (1080x1920) or square (1080x1080)
 - **Highlights**: your agent picks the moments and writes the captions
+- **PR replays**: a "How this was made" GIF in the pull request description
 - **replay.html**: one file that plays like a video, if you ask for HTML
 - **Secrets masked**: API keys, tokens and passwords show up as `********`
 
@@ -42,6 +44,7 @@ agent-replay latest -o demo.mp4 --turns 2-3 --speed 2
 agent-replay outline latest                        # numbered steps, to pick highlights
 agent-replay latest -o clip.mp4 --title 'Fixing the build' \
   --cut '4-9: Finds the bug' --cut '15: Tests pass'
+agent-replay pr latest --cut '4-9: Finds the bug'  # add the replay to this branch's PR
 ```
 
 Run `agent-replay --help` for everything else.

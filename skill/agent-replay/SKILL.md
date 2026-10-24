@@ -1,6 +1,6 @@
 ---
 name: agent-replay
-description: Turn a Claude Code, Codex or OpenCode session into an MP4 that looks like the real terminal UI, in landscape, vertical or square, optionally cut down to captioned highlights, or a self-contained replay.html video player on request. Use when the user asks to replay, record, share, export, clip, highlight, or make a video of an agent session, "this session", or a session by id.
+description: Turn a Claude Code, Codex or OpenCode session into an MP4 that looks like the real terminal UI, in landscape, vertical or square, optionally cut down to captioned highlights, a "How this was made" replay on a GitHub pull request, or a self-contained replay.html video player on request. Use when the user asks to replay, record, share, export, clip, highlight, or make a video of an agent session, "this session", or a session by id, or to add a replay to a PR.
 ---
 
 # Agent Replay
@@ -81,6 +81,26 @@ Steps between cuts are dropped and shown as "⋯ N steps later". Aim for 20 to
 45 seconds. If the CLI prints a longer video, tighten the cuts or add
 `--speed 1.5`.
 
+## Pull requests
+
+When the user wants a replay on a pull request, open or push the PR first, then
+run this from the repository:
+
+```sh
+<skill-dir>/replay.sh pr <session> \
+  --cut '2-6: Reads the cart code' --cut '9: Test breaks at $60' \
+  --cut '14-15: Ships it, 4/4 pass'
+```
+
+It renders a GIF and an MP4, commits them to an `agent-replay` branch of the
+PR's repository with `gh`, and adds a "How this was made" section to the PR
+description. Running it again replaces that section. It uses the PR for the
+current branch; pass `--pr <number>` for another one.
+
+Pick cuts as for a highlight, but tell the story of this PR only: the ask, what
+shaped the change, and the proof it works. Aim for 10 to 30 seconds and skip
+the title card. The replay is as public as the repository.
+
 ## Secrets
 
 The CLI masks API keys, tokens, passwords, private keys, and credentials in
@@ -89,6 +109,6 @@ the user publishes a replay, tell them to skim it.
 
 ## Report
 
-Give the output path, the video length and render time the CLI printed, and
-for highlights the cuts you picked. If the user wants a public link and a
+Give the output path (or the PR URL), the video length and render time the CLI
+printed, and for highlights the cuts you picked. If the user wants a public link and a
 file-upload skill is available, upload the file with it.
