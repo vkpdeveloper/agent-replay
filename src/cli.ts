@@ -90,16 +90,20 @@ if (!mp4Only) {
 if (mp4Only || values.mp4) {
   const { renderMp4 } = await import("./mp4.ts");
   const video = mp4Only ? out : out.replace(/\.(html|json)$/, "") + ".mp4";
+  const rendering = performance.now();
+  // The \r progress line only makes sense in a terminal. Agents capture stderr.
+  const tty = process.stderr.isTTY;
   let shown = -1;
   await renderMp4(replay, video, (progress) => {
     const percent = Math.floor(progress * 100);
-    if (percent !== shown && percent % 5 === 0) {
+    if (tty && percent !== shown && percent % 5 === 0) {
       shown = percent;
       process.stderr.write(`\rRendering MP4 ${percent}%`);
     }
   });
-  process.stderr.write("\n");
-  console.log(`${video}  (${seconds}s)`);
+  if (tty) process.stderr.write("\n");
+  const took = ((performance.now() - rendering) / 1000).toFixed(1);
+  console.log(`${video}  (${seconds}s of video, rendered in ${took}s)`);
 }
 
 function parseTurns(value: string | undefined): [number, number] | undefined {
