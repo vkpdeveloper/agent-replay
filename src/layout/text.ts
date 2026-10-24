@@ -145,7 +145,8 @@ function inline(line: string): Span[] {
   for (const match of line.matchAll(pattern)) {
     if (match.index > last) spans.push([line.slice(last, match.index)]);
     if (match[1] !== undefined) spans.push([match[1], "code"]);
-    else if (match[2] !== undefined) spans.push([match[2], "b"]);
+    // **`path`** is common in agent replies; the bold wins and the backticks go.
+    else if (match[2] !== undefined) spans.push([match[2].replace(/`/g, ""), "b"]);
     else if (match[3] !== undefined) spans.push([match[3], "acc"]);
     last = match.index + match[0].length;
   }

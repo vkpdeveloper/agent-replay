@@ -120,6 +120,9 @@ function toolEvents(part: Extract<Part, { type: "tool" }>, fallback: number): Se
       return [event({ kind: "list", path: str("path") || "." })];
     case "todowrite":
       return [event({ kind: "todo", items: todos(input.todos) })];
+    case "skill":
+      // The output is the whole SKILL.md; the TUI shows one row.
+      return [event({ kind: "generic", name: "skill", args: str("name"), output: clip("") })];
     default:
       return [event({ kind: "generic", name: part.name, args: shortArgs(input), output: clip(text) })];
   }
