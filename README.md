@@ -2,20 +2,23 @@
 
 [![skills.sh](https://skills.sh/b/vkpdeveloper/agent-replay)](https://skills.sh/vkpdeveloper/agent-replay)
 
-Turn a Claude Code or Codex session into a replay that looks like the real
-terminal: the prompt being typed, the spinner, tool calls going up, results
-streaming in, diffs, todos. You get a 1080p MP4, or one self-contained
-`replay.html` that plays like a video.
+Turn a Claude Code, Codex or OpenCode session into a replay that looks like the
+real terminal: the prompt being typed, the spinner, tool calls going up, results
+streaming in, diffs, todos. You get a 1080p MP4 in landscape, vertical or
+square, or one self-contained `replay.html` that plays like a video. Ask for a
+highlight and your agent cuts the session down to the moments worth watching,
+with captions.
 
 ## Install
 
-As an agent skill for Claude Code, Codex and other agents:
+As an agent skill for Claude Code, Codex, OpenCode and other agents:
 
 ```sh
 npx skills add vkpdeveloper/agent-replay
 ```
 
-Then ask your agent to "make a replay of this session". The skill downloads the
+Then ask your agent to "make a replay of this session", or "make a vertical
+highlight of this session". The skill downloads the
 right binary for your machine from the latest release on first use and checks
 for updates once a day.
 
@@ -37,11 +40,27 @@ agent-replay latest:claude -o demo.mp4  # MP4 only
 agent-replay latest:claude              # -> replay-<id>.html
 agent-replay <session-id> --mp4         # -> replay-<id>.html + replay-<id>.mp4
 agent-replay <session-id> -o demo.mp4 --turns 2-3 --speed 1.5
+agent-replay latest -o reel.mp4 --format vertical   # 1080x1920, or --format square
 ```
 
 Sessions are read from `~/.claude/projects` (Claude Code, including T3 Code's
-Claude threads) and `~/.codex/sessions` (Codex). A session can be a path, an id
-or part of one, `latest`, `latest:claude` or `latest:codex`.
+Claude threads), `~/.codex/sessions` (Codex) and OpenCode's database in
+`~/.local/share/opencode`. A session can be a path, an id or part of one,
+`latest`, `latest:claude`, `latest:codex` or `latest:opencode`.
+
+### Highlights
+
+`outline` prints every step of a session on one numbered line. Pick the
+moments, give each a caption, and only those play, with a caption over each,
+an optional title card, and a "⋯ 6 steps later" marker for every gap. The
+prompt of each turn is kept. The skill tells your agent to do the picking.
+
+```sh
+agent-replay outline latest
+agent-replay latest -o highlight.mp4 --format vertical \
+  --title "GLM ships discount codes" \
+  --cut "4-8: Writes the feature" --cut "15: Tests fail" --cut "26-27: All 8 green"
+```
 
 ## What you get
 
@@ -55,7 +74,9 @@ or part of one, `latest`, `latest:claude` or `latest:codex`.
 Each agent gets its own theme. Claude Code has the welcome box, `●` tool calls
 with `⎿` results, the orange spinner with an elapsed timer, and the rounded input
 box. Codex has `• Ran` and `• Explored` blocks, `└` output, reasoning titles in the
-working indicator, and the shaded composer.
+working indicator, and the shaded composer. OpenCode has the logo, prompts behind
+the agent-coloured bar, `→ Read` and `← Edit` rows, the `▣ Build` summary after
+each turn, and the scanning working indicator.
 
 ## Secrets are masked
 
@@ -77,15 +98,18 @@ before you publish it. If something slips through, add a case to
 ## How it works
 
 ```text
-session.jsonl ─ parse ─▶ Session ─ redact ─▶ layout ─▶ Replay ─┬─▶ replay.html (Player + web export)
- (Claude/Codex)          (events)            (theme)  (lines   └─▶ MP4 (@remotion/renderer)
-                                                       × frames)
+session ─ parse ─▶ Session ─ redact ─▶ layout ─▶ Replay ─┬─▶ replay.html (Player + web export)
+(Claude, Codex,    (events)            (theme,  (lines   └─▶ MP4 (@remotion/renderer)
+ OpenCode)                              cuts)    × frames)
 ```
 
-1. `src/parse/` turns Claude Code and Codex JSONL into one event model. Tool
-   output is clipped while parsing, so a 65 MB transcript parses in about 70 ms.
-2. `src/layout/` pre-wraps everything to a fixed 120×32 terminal grid in the
-   agent's own style and stamps each row with the frame it appears on. Pacing
+1. `src/parse/` turns Claude Code and Codex JSONL and OpenCode's SQLite rows
+   into one event model. Tool output is clipped while parsing, so a 65 MB
+   transcript parses in about 70 ms.
+2. `src/layout/` pre-wraps everything to a fixed terminal grid (120×32 for
+   landscape, 50 columns for vertical, 60 for square) in the agent's own style
+   and stamps each row with the frame it appears on. Highlight cuts drop the
+   steps outside them here. Pacing
    keeps the rhythm of the session (typing, waiting on tools, streaming) and
    drops the dead time. The spinner's timer still shows real elapsed time.
 3. `src/video/Replay.tsx` is the Remotion composition. It draws each frame on
