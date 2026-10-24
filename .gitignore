@@ -5,3 +5,4 @@ out
 *.webm
 replay*.html
 .DS_Store
+!docs/demo.mp4

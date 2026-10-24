@@ -69,11 +69,13 @@ session is long, cut it down to the moments worth watching. You pick them.
 
    ```sh
    <skill-dir>/replay.sh <session> --format vertical \
-     --title "GLM ships discount codes" \
-     --cut "4-8: Writes the feature" --cut "15: Tests fail" \
-     --cut "18-19: Rethinks the design" --cut "26-27: All 8 green" \
+     --title 'GLM ships discount codes' \
+     --cut '4-8: Writes the feature' --cut '15: Tests fail on the $5 fee' \
+     --cut '18-19: Rethinks the design' --cut '26-27: All 8 green' \
      -o ~/Desktop/replay-<slug>-highlight.mp4
    ```
+
+   Use single quotes, so the shell leaves `$` and `!` in captions alone.
 
 Steps between cuts are dropped and shown as "⋯ N steps later". Aim for 20 to
 45 seconds. If the CLI prints a longer video, tighten the cuts or add
