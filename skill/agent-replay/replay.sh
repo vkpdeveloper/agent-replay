@@ -47,7 +47,10 @@ install() {
   echo "agent-replay: installing v$1 for $os-$arch" >&2
   mkdir -p "$home" || return 1
   tmp=$(mktemp -d "$home/.install.XXXXXX") || return 1
-  if ! curl -fL --progress-bar "https://github.com/$repo/releases/download/v$1/agent-replay-$os-$arch.tar.gz" -o "$tmp/release.tar.gz" ||
+  # A progress bar only in a terminal; agents capture stderr.
+  progress=-sS
+  if [ -t 2 ]; then progress=--progress-bar; fi
+  if ! curl -fL "$progress" "https://github.com/$repo/releases/download/v$1/agent-replay-$os-$arch.tar.gz" -o "$tmp/release.tar.gz" ||
     ! tar -xzf "$tmp/release.tar.gz" -C "$tmp"; then
     rm -rf "$tmp"
     return 1
