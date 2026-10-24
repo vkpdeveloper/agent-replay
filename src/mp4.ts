@@ -1,4 +1,4 @@
-import { renderMedia, selectComposition } from "@remotion/renderer";
+import { renderMedia, selectComposition, type OnBrowserDownload } from "@remotion/renderer";
 import { existsSync, realpathSync } from "node:fs";
 import { cpus } from "node:os";
 import { dirname, join } from "node:path";
@@ -8,6 +8,12 @@ import { COMPOSITION_ID, type Replay } from "./replay.ts";
 // binaries (see scripts/install.ts). From source, the site is bundled on the fly.
 const home = dirname(realpathSync(process.execPath));
 const installed = existsSync(join(home, "site", "index.html"));
+
+// Remotion logs a progress line every 10 MB, which floods an agent's tool output.
+const onBrowserDownload: OnBrowserDownload = () => {
+  process.stderr.write("Downloading Chrome Headless Shell (about 170 MB, first MP4 only)\n");
+  return { version: null, onProgress: () => {} };
+};
 
 /** Renders the replay to H.264 with headless Chrome. The first run downloads Chrome Headless Shell. */
 export async function renderMp4(replay: Replay, outputLocation: string, onProgress: (progress: number) => void) {
@@ -22,7 +28,7 @@ export async function renderMp4(replay: Replay, outputLocation: string, onProgre
   }
   const binariesDirectory = installed ? join(home, "compositor") : null;
   const inputProps = { replay };
-  const composition = await selectComposition({ serveUrl, id: COMPOSITION_ID, inputProps, binariesDirectory });
+  const composition = await selectComposition({ serveUrl, id: COMPOSITION_ID, inputProps, binariesDirectory, onBrowserDownload });
   await renderMedia({
     composition,
     serveUrl,
@@ -34,6 +40,7 @@ export async function renderMp4(replay: Replay, outputLocation: string, onProgre
     outputLocation,
     inputProps,
     binariesDirectory,
+    onBrowserDownload,
     onProgress: ({ progress }) => onProgress(progress),
   });
 }
