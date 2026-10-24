@@ -29,7 +29,7 @@ jobs:
     env:
       EXE: ${{ startsWith(matrix.target, 'windows') && '.exe' || '' }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.0
@@ -54,7 +54,7 @@ jobs:
       - name: Package
         working-directory: dist
         run: tar -czf ../agent-replay-${{ matrix.target }}.tar.gz agent-replay$EXE site compositor package.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: agent-replay-${{ matrix.target }}
           path: agent-replay-${{ matrix.target }}.tar.gz
@@ -64,7 +64,7 @@ jobs:
     needs: build
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: out
           merge-multiple: true
