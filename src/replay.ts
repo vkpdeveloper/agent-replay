@@ -2,7 +2,7 @@ import type { Agent } from "./session.ts";
 
 // The data the video component plays. Everything is pre-wrapped to a fixed
 // terminal grid and stamped with the frame it appears on, so rendering a frame
-// is two binary searches and ~30 rows of DOM.
+// is two binary searches and a few dozen rows of text.
 
 export type Tone =
   | "fg"
@@ -49,6 +49,16 @@ export interface Status {
   s1: number;
 }
 
+/** A highlight cut's caption, shown over the transcript while its steps play. */
+export interface Caption {
+  from: number;
+  to: number;
+  text: string;
+  /** 1-based position among the cuts, shown as "2/4". */
+  index: number;
+  count: number;
+}
+
 export interface Replay {
   agent: Agent;
   title: string;
@@ -56,19 +66,33 @@ export interface Replay {
   model: string;
   version: string;
   fps: number;
+  width: number;
+  height: number;
   cols: number;
   rows: number;
   durationInFrames: number;
   lines: Line[];
   prompts: Prompt[];
   status: Status[];
+  captions: Caption[];
+  /** Title card shown over the opening frames, fading out at `to`. */
+  card?: { text: string; to: number };
 }
 
 export const COMPOSITION_ID = "Replay";
 export const FPS = 30;
-export const COLS = 120;
-export const ROWS = 32;
 /** Rows under the transcript: status, gap, input box (3) and footer. */
 export const CHROME_ROWS = 6;
-export const WIDTH = 1920;
-export const HEIGHT = 1080;
+
+export type Format = "landscape" | "vertical" | "square";
+
+/**
+ * Frame size and terminal grid per format. Narrower grids mean a bigger font,
+ * so vertical and square stay readable on a phone. Rows fill the window at the
+ * font size the renderer derives from `cols`.
+ */
+export const FORMATS: Record<Format, { width: number; height: number; cols: number; rows: number }> = {
+  landscape: { width: 1920, height: 1080, cols: 120, rows: 32 },
+  vertical: { width: 1080, height: 1920, cols: 50, rows: 50 },
+  square: { width: 1080, height: 1080, cols: 60, rows: 31 },
+};

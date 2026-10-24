@@ -32,6 +32,10 @@ function palette(base: {
   code: string;
   userBg: string;
   inputBg: string;
+  window?: string;
+  titlebar?: string;
+  add?: ToneStyle;
+  del?: ToneStyle;
 }): Palette {
   return {
     window: "#131313",
@@ -47,8 +51,8 @@ function palette(base: {
       ok: { color: "#4eba65" },
       err: { color: "#ff6b80" },
       warn: { color: "#e5c07b" },
-      add: { color: "#e6f4e8", bg: "#1f4a2a" },
-      del: { color: "#f7e4e6", bg: "#5c2229" },
+      add: base.add ?? { color: "#e6f4e8", bg: "#1f4a2a" },
+      del: base.del ?? { color: "#f7e4e6", bg: "#5c2229" },
       code: { color: base.code },
       num: { color: "#5f5f5f" },
     },
@@ -75,6 +79,21 @@ export const palettes: Record<Agent, Palette> = {
     code: "#8fd3f7",
     userBg: "#24272d",
     inputBg: "#24272d",
+  }),
+  // OpenCode's default dark theme. `acc` is the Build agent's colour.
+  opencode: palette({
+    backdrop: ["#1b2436", "#0d0f14", "#0a0a0a"],
+    fg: "#eeeeee",
+    dim: "#808080",
+    acc: "#5c9cf5",
+    shimmer: "#fab283",
+    code: "#fab283",
+    userBg: "#141414",
+    inputBg: "#141414",
+    window: "#0a0a0a",
+    titlebar: "#161616",
+    add: { color: "#4fd6be", bg: "#20303b" },
+    del: { color: "#e06c75", bg: "#37222c" },
   }),
 };
 

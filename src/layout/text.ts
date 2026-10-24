@@ -25,6 +25,19 @@ export function truncate(text: string, cells: number): string {
   return `${sliceCells(text, cells - 1)[0]}…`;
 }
 
+/** Cuts a row of spans down to `cells`, for fixed rows such as headers. */
+export function fitRow(row: Span[], cells: number): Span[] {
+  const out: Span[] = [];
+  let room = cells;
+  for (const [text, tone] of row) {
+    if (room <= 0) break;
+    const kept = cellWidth(text) <= room ? text : sliceCells(text, room)[0];
+    out.push(tone ? [kept, tone] : [kept]);
+    room -= cellWidth(kept);
+  }
+  return out;
+}
+
 /**
  * Word-wraps one logical line of spans to `width` cells. `first` prefixes the
  * first row and `rest` every continuation row, like a terminal hanging indent.

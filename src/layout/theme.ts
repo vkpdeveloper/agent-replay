@@ -15,6 +15,10 @@ export interface Theme {
   tool(tool: Tool, ok: boolean, continuing: boolean, width: number): { head: Span[][]; body: Span[][] };
   notice(text: string, width: number): Span[][];
   verb(turn: number): string;
+  /** What the input box shows instead of typing out a long prompt. */
+  paste(text: string): string;
+  /** Rows printed when a turn finishes, given its real duration in seconds. */
+  turnEnd?(seconds: number, model: string, width: number): Span[][];
 }
 
 export function box(rows: Span[][], width: number, tone: Span[1], title?: string): Span[][] {

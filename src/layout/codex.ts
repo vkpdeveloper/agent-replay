@@ -102,4 +102,6 @@ export const codex: Theme = {
   },
 
   verb: () => "Working",
+
+  paste: (text) => `[Pasted Content ${text.length} chars]`,
 };

@@ -3,7 +3,8 @@ import { Player, type PlayerRef } from "@remotion/player";
 import { renderMediaOnWeb } from "@remotion/web-renderer";
 import { useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { HEIGHT, WIDTH, type Replay as ReplayData } from "../replay.ts";
+import type { Replay as ReplayData } from "../replay.ts";
+import { AGENT_NAMES } from "../session.ts";
 import { Replay } from "../video/Replay.tsx";
 
 const replay = JSON.parse(document.getElementById("replay-data")!.textContent!) as ReplayData;
@@ -29,8 +30,8 @@ const App = () => {
           component: Replay,
           durationInFrames: replay.durationInFrames,
           fps: replay.fps,
-          width: WIDTH,
-          height: HEIGHT,
+          width: replay.width,
+          height: replay.height,
           defaultProps: { replay },
         },
         inputProps: { replay },
@@ -58,9 +59,9 @@ const App = () => {
     <main>
       <header>
         <div className="title">
-          <strong>{replay.title || (replay.agent === "claude" ? "Claude Code session" : "Codex session")}</strong>
+          <strong>{replay.title || `${AGENT_NAMES[replay.agent]} session`}</strong>
           <span>
-            {[replay.agent === "claude" ? "Claude Code" : "Codex", replay.model, length].filter(Boolean).join(" · ")}
+            {[AGENT_NAMES[replay.agent], replay.model, length].filter(Boolean).join(" · ")}
           </span>
         </div>
         <button onClick={exportMp4} disabled={progress !== null}>
@@ -74,9 +75,15 @@ const App = () => {
         inputProps={{ replay }}
         durationInFrames={replay.durationInFrames}
         fps={replay.fps}
-        compositionWidth={WIDTH}
-        compositionHeight={HEIGHT}
-        style={{ width: "100%", aspectRatio: `${WIDTH} / ${HEIGHT}` }}
+        compositionWidth={replay.width}
+        compositionHeight={replay.height}
+        // Vertical and square replays are capped to the viewport height.
+        style={{
+          width: "100%",
+          maxWidth: `calc((100vh - 96px) * ${replay.width / replay.height})`,
+          margin: "0 auto",
+          aspectRatio: `${replay.width} / ${replay.height}`,
+        }}
         controls
         autoPlay
         clickToPlay

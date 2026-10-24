@@ -2,7 +2,9 @@
 // turns it into terminal lines. Outputs are already clipped (see `clip`) so a
 // 60 MB transcript never turns into a 60 MB replay.
 
-export type Agent = "claude" | "codex";
+export type Agent = "claude" | "codex" | "opencode";
+
+export const AGENT_NAMES: Record<Agent, string> = { claude: "Claude Code", codex: "Codex", opencode: "OpenCode" };
 
 export interface Session {
   agent: Agent;

@@ -67,6 +67,8 @@ export const claude: Theme = {
   },
 
   verb: (turn) => VERBS[turn % VERBS.length]!,
+
+  paste: (text) => `[Pasted text #1 +${text.split("\n").length} lines]`,
 };
 
 function render(
